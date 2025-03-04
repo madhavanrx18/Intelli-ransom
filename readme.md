@@ -56,4 +56,3 @@ This Python project provides a **Ransomware Analyzer GUI** using the `Tkinter` l
 
 Ensure that you have a valid VirusTotal API key to perform dynamic analysis. API rate limits may apply.
 
-This tool is intended for educational and research purposes only. Use responsibly.
