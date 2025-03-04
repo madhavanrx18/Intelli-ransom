@@ -13,7 +13,7 @@ import threading
 import os
 
 # VirusTotal API key (replace with your actual key)
-API_KEY = 'dddb032813a57d0742adf6d7f471c197759ec83a2bfd7a9e143e3ecf3da023f4'
+API_KEY = 'edit your api key here'
 
 # VirusTotal base URL for file analysis
 BASE_URL = 'https://www.virustotal.com/api/v3/'
