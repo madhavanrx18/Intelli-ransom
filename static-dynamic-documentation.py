@@ -138,34 +138,67 @@ def check_hash_virustotal(file_hash):
     else:
         return f"Error querying VirusTotal: {response.status_code}"
 
+import pefile
+
 def pe_header_analysis(file_path):
-    if check_file_format(file_path):
-        try:
-            pe = pefile.PE(file_path)
-            suspicious_imports = [
-    "IMAGE_DOS_HEADER", "IMAGE_NT_HEADERS", "IMAGE_FILE_EXECUTABLE_IMAGE", 
-    "IMAGE_FILE_DLL", "IMAGE_FILE_RELOCS_STRIPPED", "IMAGE_FILE_MACHINE_I386", 
-    "IMAGE_FILE_MACHINE_AMD64", "IMAGE_OPTIONAL_HEADER", 
-    "IMAGE_DIRECTORY_ENTRY_IMPORT", "IMAGE_DIRECTORY_ENTRY_EXPORT", 
-    "IMAGE_DIRECTORY_ENTRY_SECURITY", "IMAGE_SECTION_HEADER", 
-    ".text", ".data", ".rdata", ".bss", ".rsrc", 
-    ".reloc", "BaseOfCode", "BaseOfData", "EntryPoint", 
-    "VirtualSize", "Characteristics", "Subsystem", 
-    "DllCharacteristics", "Magic", "MajorSubsystemVersion", 
-    "MinorSubsystemVersion", "SizeOfImage", "CheckSum", 
-    "SizeOfHeaders", "Import Address Table", "Export Table", 
-    "Resource Table", "Exception Table", "TLS Table", 
-    "IMAGE_FILE_MACHINE_ARM", "IMAGE_FILE_MACHINE_ARM64", 
-    "IMAGE_SCN_CNT_CODE", "IMAGE_SCN_CNT_INITIALIZED_DATA", 
-    "IMAGE_SCN_CNT_UNINITIALIZED_DATA", "IMAGE_SCN_MEM_EXECUTE", 
-    "IMAGE_SCN_MEM_READ", "IMAGE_SCN_MEM_WRITE"
-]
-            detected_imports = [imp.name.decode() for entry in pe.DIRECTORY_ENTRY_IMPORT for imp in entry.imports if imp.name and imp.name.decode() in suspicious_imports]
-            return f"Suspicious API calls found: {', '.join(detected_imports)}" if detected_imports else "No suspicious API calls detected."
-        except Exception as e:
-            return f"Error inspecting PE headers: {e}"
-    else:
-        return "File is not a valid PE file. Skipping PE header analysis."
+    suspicious_apis = [
+        # Process & Memory Manipulation
+        "CreateProcessA", "CreateProcessW", "CreateProcessInternal",
+        "OpenProcess", "TerminateProcess", "NtUnmapViewOfSection",
+        "NtQueryInformationProcess", "GetThreadContext", "SetThreadContext",
+        "SuspendThread", "ResumeThread", "CreateRemoteThread", "NtCreateThreadEx",
+        "VirtualAlloc", "VirtualAllocEx", "VirtualProtect", "VirtualProtectEx",
+        "VirtualFree", "WriteProcessMemory", "ReadProcessMemory",
+        "MapViewOfFile", "UnmapViewOfFile",
+
+        # Dynamic Loading & API Resolution
+        "LoadLibraryA", "LoadLibraryW", "LoadLibraryExA", "LoadLibraryExW",
+        "GetProcAddress", "LdrLoadDll", "GetModuleHandleA", "GetModuleHandleW",
+
+        # Privilege Escalation / Security
+        "AdjustTokenPrivileges", "OpenProcessToken",
+        "ImpersonateLoggedOnUser", "RevertToSelf", "LookupPrivilegeValue",
+
+        # Registry Persistence
+        "RegOpenKeyExA", "RegOpenKeyExW", "RegCreateKeyExA", "RegCreateKeyExW",
+        "RegSetValueExA", "RegSetValueExW", "RegDeleteValueA", "RegDeleteValueW",
+        "RegCloseKey",
+
+        # File & Service Manipulation
+        "CreateFileA", "CreateFileW", "WriteFile", "ReadFile", "DeleteFileA",
+        "DeleteFileW", "CopyFileA", "CopyFileW", "MoveFileA", "MoveFileW",
+        "StartServiceA", "StartServiceW", "OpenServiceA", "OpenServiceW",
+        "ControlService", "CreateServiceA", "CreateServiceW",
+
+        # Networking & Communication
+        "WSAStartup", "socket", "connect", "send", "recv",
+        "InternetOpenA", "InternetOpenW", "InternetOpenUrlA", "InternetOpenUrlW",
+        "InternetConnectA", "InternetConnectW", "HttpSendRequestA", "HttpSendRequestW",
+        "WinHttpOpen", "WinHttpConnect",
+
+        # Suspicious Execution
+        "WinExec", "ShellExecuteA", "ShellExecuteW", "system",
+        "NtCreateSection", "NtMapViewOfSection"
+    ]
+
+    try:
+        pe = pefile.PE(file_path)
+        detected_apis = [
+            imp.name.decode(errors="ignore")
+            for entry in pe.DIRECTORY_ENTRY_IMPORT
+            for imp in entry.imports
+            if imp.name and imp.name.decode(errors="ignore") in suspicious_apis
+        ]
+
+        if detected_apis:
+            return f"Suspicious API calls found: {', '.join(set(detected_apis))}"
+        else:
+            return "No suspicious API calls detected."
+
+    except AttributeError:
+        return "No import table found in this PE file."
+    except Exception as e:
+        return f"Error inspecting PE headers: {e}"
 
 def extract_strings(file_path, min_length=4):
     try:
